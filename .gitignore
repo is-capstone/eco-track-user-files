@@ -1,0 +1,12 @@
+# Ignore IDEA
+.idea
+
+# Ignore Gradle files
+.gradle
+
+# Ignore local development CA
+devCA.crt
+devCA.key
+
+# Ignore Gradle build output directory
+build

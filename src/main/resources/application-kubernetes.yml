@@ -1,0 +1,95 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+  tomcat:
+    max-swallow-size: 10GB
+spring:
+  # application-wide properties
+  application:
+    name: file-eco-track-service
+  cloud:
+    kubernetes:
+      discovery:
+        all-namespaces: true
+  threads:
+    virtual:
+      enabled: true
+  mandatory-file-encoding: utf-8
+
+  # persistence (postgresql database) properties
+  flyway:
+    locations: classpath:db/{vendor}/common
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${PG_JDBC_URL}
+    username: ${PG_USERNAME}
+    password: ${PG_PASSWORD}
+    hikari:
+      minimum-idle: 4
+      maximum-pool-size: 12
+      pool-name: eco-track-file-pg-cp
+
+  # inter-service communication properties
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    listener:
+      simple:
+        de-batching-enabled: false
+        concurrency: 4
+        max-concurrency: 10
+    mapping:
+      file-events:
+        new-file:
+          exchange: ${FILE_EVENTS_EXCHANGE}
+          routing-key: ${NEW_FILE_ROUTING_KEY}
+        succeed-file:
+          queue: ${SUCCEED_FILE_EVENT_QUEUE}
+        failed-file:
+          queue: ${FAILED_FILE_EVENT_QUEUE}
+
+  # security properties
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KC_JWKSET_URI}
+
+  # persistence (blob storage) properties
+  aws:
+    s3:
+      bucket: ${S3_BUCKET}
+      endpoint: ${S3_ENDPOINT}
+      access-key: ${S3_ACCESS_KEY}
+      secret-key: ${S3_SECRET_KEY}
+  servlet:
+    multipart:
+      max-file-size: 10GB
+      max-request-size: 10GB
+
+management:
+  # actuator properties (health-checks)
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      probes:
+        enabled: true
+        add-additional-paths: true
+
+# application usage statistics propagation configuration
+api:
+  stats:
+    enabled: ${API_STATS_ENABLED}
+    rabbit-exchange: ${API_STATS_EXCHANGE}
+    rabbit-routing-key: ${API_STATS_ROUTING_KEY}

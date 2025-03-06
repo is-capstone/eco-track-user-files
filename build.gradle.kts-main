@@ -1,0 +1,53 @@
+plugins { java }
+
+buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath(libs.buildscript.spring.bootPlugin)
+        classpath(libs.buildscript.spring.dependencyManagementPlugin)
+    }
+}
+
+childProjects.forEach { entry ->
+    val projectName: String = entry.key
+    val it: Project = entry.value
+
+    it.apply(plugin = "java")
+    it.apply(plugin = "org.springframework.boot")
+    it.apply(plugin = "io.spring.dependency-management")
+
+    it.repositories.apply {
+        mavenCentral()
+    }
+
+    it.configurations {
+        it.configurations.compileOnly {
+            extendsFrom(it.configurations.annotationProcessor.get())
+        }
+    }
+
+    it.tasks.withType<Test>().configureEach {
+        useJUnitPlatform()
+        testLogging.events("PASSED", "SKIPPED", "FAILED")
+    }
+
+    it.dependencies {
+        if (projectName.endsWith("-service")) {
+            // spring cloud bom
+            implementation(platform(libs.dep.bom.springCloud))
+            implementation(platform(libs.dep.bom.awssdk))
+
+            // k8s
+            implementation(libs.dep.spring.starter.k8sServiceDiscovery)
+
+            // observability
+            implementation(libs.dep.spring.starter.actuator)
+        }
+
+        testImplementation(libs.dep.spring.starter.test)
+        testRuntimeOnly(libs.dep.junit.platformLauncher)
+    }
+}
