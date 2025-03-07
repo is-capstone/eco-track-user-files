@@ -1,6 +1,5 @@
 package com.enzulode.file.service;
 
-import com.enzulode.file.dto.FinishFastUploadDto;
 import com.enzulode.file.dto.PartDetailsDto;
 import com.enzulode.file.dto.StartFastUploadResponseDto;
 import com.enzulode.file.util.AwsSdkUtil;
@@ -12,6 +11,9 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
+import java.util.List;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -22,17 +24,16 @@ public class BlockingMultipartUploadServiceImpl implements MultipartUploadServic
   private final S3Client client;
 
   @Override
-  public StartFastUploadResponseDto start(String key, String type) {
-    var contentType = "JSON".equalsIgnoreCase(type) ? "application/json" : "text/csv";
+  public StartFastUploadResponseDto start(String key, String type, UUID fileId) {
     var createMPartUploadReq = CreateMultipartUploadRequest.builder()
         .bucket(BUCKET)
         .key(key)
-        .contentType(contentType)
+        .contentType(type)
         .build();
 
     var response = client.createMultipartUpload(createMPartUploadReq);
     AwsSdkUtil.checkSdkResponse(response);
-    return new StartFastUploadResponseDto(response.uploadId());
+    return new StartFastUploadResponseDto(response.uploadId(), fileId);
   }
 
   @Override
@@ -64,8 +65,8 @@ public class BlockingMultipartUploadServiceImpl implements MultipartUploadServic
   }
 
   @Override
-  public void finish(FinishFastUploadDto finishUploadDto) {
-    var parts = finishUploadDto.parts()
+  public void finish(String uploadId, String key, List<PartDetailsDto> partsData) {
+    var parts = partsData
         .stream().map(part -> CompletedPart.builder()
             .eTag(part.eTag())
             .partNumber(part.partNumber())
@@ -75,9 +76,9 @@ public class BlockingMultipartUploadServiceImpl implements MultipartUploadServic
         .parts(parts)
         .build();
     var completeMPartUploadReq = CompleteMultipartUploadRequest.builder()
-        .uploadId(finishUploadDto.uploadId())
+        .uploadId(uploadId)
         .bucket(BUCKET)
-        .key(finishUploadDto.objectKey())
+        .key(key)
         .multipartUpload(completedMPartUpload)
         .build();
 
@@ -87,9 +88,9 @@ public class BlockingMultipartUploadServiceImpl implements MultipartUploadServic
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       var abortReq = AbortMultipartUploadRequest.builder()
-          .uploadId(finishUploadDto.uploadId())
+          .uploadId(uploadId)
           .bucket(BUCKET)
-          .key(finishUploadDto.objectKey())
+          .key(key)
           .build();
       var response = client.abortMultipartUpload(abortReq);
       AwsSdkUtil.checkSdkResponse(response);
