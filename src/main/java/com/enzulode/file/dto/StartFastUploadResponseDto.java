@@ -1,3 +1,5 @@
 package com.enzulode.file.dto;
 
-public record StartFastUploadResponseDto(String uploadId) {}
+import java.util.UUID;
+
+public record StartFastUploadResponseDto(String uploadId, UUID fileId) {}
