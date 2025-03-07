@@ -1,5 +1,7 @@
 package com.enzulode.file.facade;
 
+import com.enzulode.file.dao.entity.FileMetadataEntity;
+import com.enzulode.file.dao.repository.FileMetadataRepository;
 import com.enzulode.file.dto.CurrentlyProcessing;
 import com.enzulode.file.dto.FinishFastUploadDto;
 import com.enzulode.file.dto.PartDetailsDto;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
@@ -37,6 +40,7 @@ public class InMemoryUploadApiFacadeImpl implements UploadApiFacade {
   private final MultipartUploadService uploadService;
   private final RabbitMQProducer producer;
   private final SecurityContextHelper contextHelper;
+  private final FileMetadataRepository metadataRepository;
 
   @Override
   public StartFastUploadResponseDto start(Long metricsId, String filename, String type) {
@@ -56,10 +60,14 @@ public class InMemoryUploadApiFacadeImpl implements UploadApiFacade {
     return uploadService.uploadPart(uploadId, partNumber, processingNow.key(), part);
   }
 
+  @Transactional
   @Override
   public void finish(FinishFastUploadDto finishFastUploadDto) {
     var processed = processing.remove(finishFastUploadDto.fileId());
     uploadService.finish(finishFastUploadDto.uploadId(), processed.key(), finishFastUploadDto.parts());
+
+    var newFileMetadataEntry = new FileMetadataEntity(processed.filename(), processed.owner(), FileMetadataEntity.FileStatus.PROCESSING);
+    metadataRepository.save(newFileMetadataEntry);
 
     var newFileEvent = new NewFileEvent(processed.metricsId(), processed.key(), processed.owner(), LocalDateTime.now(), processed.fileType());
     producer.send(exchange, routingKey, newFileEvent);
