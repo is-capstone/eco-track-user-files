@@ -28,14 +28,18 @@ public class FileMetadataEntity {
   private String key;
 
   @Column(nullable = false)
+  private String name;
+
+  @Column(nullable = false)
   private String ownedBy;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private FileStatus status;
 
-  public FileMetadataEntity(String key, String ownedBy, FileStatus status) {
+  public FileMetadataEntity(String key, String name, String ownedBy, FileStatus status) {
     this.key = key;
+    this.name = name;
     this.ownedBy = ownedBy;
     this.status = status;
   }

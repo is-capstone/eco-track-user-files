@@ -41,7 +41,7 @@ public class ImportServiceImpl implements ImportService {
       }
 
       // save metadata
-      var fileMetadata = new FileMetadataEntity(fullObjName, owner, FileStatus.PROCESSING);
+      var fileMetadata = new FileMetadataEntity(fullObjName, fileName, owner, FileStatus.PROCESSING);
       metadataRepository.save(fileMetadata);
 
       // notify
