@@ -1,39 +1,43 @@
 package com.enzulode.file.api;
 
-import com.enzulode.file.event.NewFileEvent;
-import com.enzulode.file.facade.ImportApiFacade;
-import com.enzulode.file.util.SecurityContextHelper;
+import com.enzulode.file.dto.FinishFastUploadDto;
+import com.enzulode.file.dto.PartDetailsDto;
+import com.enzulode.file.dto.StartFastUploadResponseDto;
+import com.enzulode.file.facade.UploadApiFacade;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
-
 @RestController
 @RequestMapping("/upload")
 @RequiredArgsConstructor
-@Slf4j
 public class UploadController {
 
-  private final ImportApiFacade importFacade;
-  private final SecurityContextHelper contextHelper;
+  private final UploadApiFacade facade;
 
-  @PostMapping(value = "/{metricsId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public void uploadFile(
-      @PathVariable Long metricsId,
-      @RequestPart("file") MultipartFile file,
+  @GetMapping("/start")
+  public StartFastUploadResponseDto start(
+      @RequestParam("metricsId") Long metricsId,
+      @RequestParam("filename") String filename,
       @RequestParam(name = "type", required = false) String type
   ) {
-    var filename = "%s_%s".formatted(UUID.randomUUID().toString(), file.getOriginalFilename());
-    if (type == null || type.isBlank()) type = "CSV";
-    NewFileEvent.SupportedFileType ft = NewFileEvent.SupportedFileType.valueOf(type.toUpperCase());
-    try {
-      importFacade.upload(metricsId, filename, file.getInputStream(), ft, contextHelper.findUserName());
-    } catch (Exception e) {
-      log.error(e.getMessage(), e);
-    }
+    return facade.start(metricsId, filename, type);
+  }
+
+  @PostMapping("/part")
+  public PartDetailsDto uploadPart(
+      @RequestParam("uploadId") String uploadId,
+      @RequestParam("partNumber") int partNumber,
+      @RequestParam("fileId") UUID fileId,
+      @RequestPart("part") MultipartFile part
+  ) {
+    return facade.uploadPart(uploadId, partNumber, fileId, part);
+  }
+
+  @PostMapping("/finish")
+  public void finish(@RequestBody FinishFastUploadDto finishFastUploadDto) {
+    facade.finish(finishFastUploadDto);
   }
 }
