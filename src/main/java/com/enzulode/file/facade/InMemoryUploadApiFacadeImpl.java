@@ -66,7 +66,7 @@ public class InMemoryUploadApiFacadeImpl implements UploadApiFacade {
     var processed = processing.remove(finishFastUploadDto.fileId());
     uploadService.finish(finishFastUploadDto.uploadId(), processed.key(), finishFastUploadDto.parts());
 
-    var newFileMetadataEntry = new FileMetadataEntity(processed.filename(), processed.owner(), FileMetadataEntity.FileStatus.PROCESSING);
+    var newFileMetadataEntry = new FileMetadataEntity(processed.key(), processed.owner(), FileMetadataEntity.FileStatus.PROCESSING);
     metadataRepository.save(newFileMetadataEntry);
 
     var newFileEvent = new NewFileEvent(processed.metricsId(), processed.key(), processed.owner(), LocalDateTime.now(), processed.fileType());
