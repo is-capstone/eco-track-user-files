@@ -13,11 +13,11 @@ import org.springframework.stereotype.Repository;
 public interface FileMetadataRepository extends JpaRepository<FileMetadataEntity, Long> {
 
   @Modifying
-  @Query("UPDATE FileMetadataEntity fme SET fme.status = 'FAILED' WHERE fme.name = :name AND fme.ownedBy = :ownedBy")
+  @Query("UPDATE FileMetadataEntity fme SET fme.status = 'FAILED' WHERE fme.key = :name AND fme.ownedBy = :ownedBy")
   void markFailedByNameAndOwnedBy(@Param("name") String objName, @Param("ownedBy") String ownedBy);
 
   @Modifying
-  @Query("UPDATE FileMetadataEntity fme SET fme.status = 'SUCCEED' WHERE fme.name = :name AND fme.ownedBy = :ownedBy")
+  @Query("UPDATE FileMetadataEntity fme SET fme.status = 'SUCCEED' WHERE fme.key = :name AND fme.ownedBy = :ownedBy")
   void markSucceedByNameAndOwnedBy(@Param("name") String objName, @Param("ownedBy") String ownedBy);
 
   @Query("SELECT fme FROM FileMetadataEntity fme WHERE fme.ownedBy = :ownedBy")
