@@ -1,57 +1,43 @@
-package com.enzulode.file.api;
+package com.enzulode.file.service;
 
+import com.enzulode.file.dto.PartDetailsDto;
+import com.enzulode.file.dto.StartFastUploadResponseDto;
+import com.enzulode.file.util.AwsSdkUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
-import java.text.MessageFormat;
 import java.util.List;
+import java.util.UUID;
 
-@RestController
-@PreAuthorize("hasRole('DEV')")
-@RequestMapping("/dev/fast-upload")
+@Service
 @RequiredArgsConstructor
-public class DevController {
-
-  public record ErrorDto(List<String> messages) {}
-
-  public record StartFastUploadResponseDto(String uploadId) {}
-  public record PartDetailsDto(int partNumber, String eTag) {}
-  public record FinishFastUploadDto(String uploadId, String objectKey, List<PartDetailsDto> parts) {}
+@Slf4j
+public class BlockingMultipartUploadServiceImpl implements MultipartUploadService {
 
   private static final String BUCKET = "import-metrics";
 
   private final S3Client client;
 
-  @GetMapping("/start")
-  public StartFastUploadResponseDto start(
-      @RequestParam("key") String key,
-      @RequestParam(name = "type", required = false) String type
-  ) {
-    var contentType = "JSON".equalsIgnoreCase(type) ? "application/json" : "text/csv";
+  @Override
+  public StartFastUploadResponseDto start(String key, String type, UUID fileId) {
     var createMPartUploadReq = CreateMultipartUploadRequest.builder()
         .bucket(BUCKET)
         .key(key)
-        .contentType(contentType)
+        .contentType(type)
         .build();
 
     var response = client.createMultipartUpload(createMPartUploadReq);
     AwsSdkUtil.checkSdkResponse(response);
-    return new StartFastUploadResponseDto(response.uploadId());
+    return new StartFastUploadResponseDto(response.uploadId(), fileId);
   }
 
-  @PostMapping("/part")
-  public PartDetailsDto uploadPart(
-      @RequestParam("uploadId") String uploadId,
-      @RequestParam("partNumber") int partNumber,
-      @RequestParam("key") String key,
-      @RequestPart("part") MultipartFile part
-  ) {
+  @Override
+  public PartDetailsDto uploadPart(String uploadId, int partNumber, String key, MultipartFile part) {
     var uploadPartReq = UploadPartRequest.builder()
         .uploadId(uploadId)
         .partNumber(partNumber)
@@ -66,6 +52,7 @@ public class DevController {
 
       return new PartDetailsDto(partNumber, response.eTag());
     } catch (Exception e) {
+      log.error(e.getMessage(), e);
       var abortReq = AbortMultipartUploadRequest.builder()
           .uploadId(uploadId)
           .bucket(BUCKET)
@@ -73,13 +60,13 @@ public class DevController {
           .build();
       var response = client.abortMultipartUpload(abortReq);
       AwsSdkUtil.checkSdkResponse(response);
-      throw new RuntimeException("MULTIPART UPLOAD ABORTION", e);
+      throw new RuntimeException("MULTIPART UPLOAD ABORTION", e); // TODO: custom exception
     }
   }
 
-  @PostMapping("/finish")
-  public void finish(@org.springframework.web.bind.annotation.RequestBody FinishFastUploadDto finishUploadDto) {
-    var parts = finishUploadDto.parts()
+  @Override
+  public void finish(String uploadId, String key, List<PartDetailsDto> partsData) {
+    var parts = partsData
         .stream().map(part -> CompletedPart.builder()
             .eTag(part.eTag())
             .partNumber(part.partNumber())
@@ -89,9 +76,9 @@ public class DevController {
         .parts(parts)
         .build();
     var completeMPartUploadReq = CompleteMultipartUploadRequest.builder()
-        .uploadId(finishUploadDto.uploadId())
+        .uploadId(uploadId)
         .bucket(BUCKET)
-        .key(finishUploadDto.objectKey())
+        .key(key)
         .multipartUpload(completedMPartUpload)
         .build();
 
@@ -99,27 +86,15 @@ public class DevController {
       var response = client.completeMultipartUpload(completeMPartUploadReq);
       AwsSdkUtil.checkSdkResponse(response);
     } catch (Exception e) {
+      log.error(e.getMessage(), e);
       var abortReq = AbortMultipartUploadRequest.builder()
-          .uploadId(finishUploadDto.uploadId())
+          .uploadId(uploadId)
           .bucket(BUCKET)
-          .key(finishUploadDto.objectKey())
+          .key(key)
           .build();
       var response = client.abortMultipartUpload(abortReq);
       AwsSdkUtil.checkSdkResponse(response);
-      throw new RuntimeException("MULTIPART UPLOAD ABORTION", e);
-    }
-  }
-
-
-  public static class AwsSdkUtil {
-    public static void checkSdkResponse(SdkResponse sdkResponse) {
-      if (AwsSdkUtil.isErrorSdkHttpResponse(sdkResponse)) {
-        throw new RuntimeException(MessageFormat.format("{0} - {1}", sdkResponse.sdkHttpResponse().statusCode(), sdkResponse.sdkHttpResponse().statusText()));
-      }
-    }
-
-    public static boolean isErrorSdkHttpResponse(SdkResponse response) {
-      return response.sdkHttpResponse() == null || !response.sdkHttpResponse().isSuccessful();
+      throw new RuntimeException("MULTIPART UPLOAD ABORTION", e); // TODO: custom exception
     }
   }
 }
