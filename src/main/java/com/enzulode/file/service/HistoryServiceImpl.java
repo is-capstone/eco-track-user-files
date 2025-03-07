@@ -21,7 +21,7 @@ public class HistoryServiceImpl implements HistoryService {
   private final SecurityContextHelper contextHelper;
 
   private static final Function<FileMetadataEntity, HistoryItemDto> mapper =
-      (el) -> new HistoryItemDto(el.getName(), el.getOwnedBy(), el.getStatus());
+      (el) -> new HistoryItemDto(el.getKey(), el.getOwnedBy(), el.getStatus());
 
   @Override
   public Page<HistoryItemDto> getHistory(Pageable pageable) {

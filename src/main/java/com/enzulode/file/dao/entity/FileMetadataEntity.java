@@ -25,7 +25,7 @@ public class FileMetadataEntity {
   private Long id;
 
   @Column(nullable = false)
-  private String name;
+  private String key;
 
   @Column(nullable = false)
   private String ownedBy;
@@ -34,8 +34,8 @@ public class FileMetadataEntity {
   @Column(nullable = false)
   private FileStatus status;
 
-  public FileMetadataEntity(String name, String ownedBy, FileStatus status) {
-    this.name = name;
+  public FileMetadataEntity(String key, String ownedBy, FileStatus status) {
+    this.key = key;
     this.ownedBy = ownedBy;
     this.status = status;
   }
